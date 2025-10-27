@@ -1,12 +1,6 @@
 name: Deploy Temporal amb Ngrok
 
 on:
-  workflow_dispatch:  # Permet executar manualment des de GitHub
-
-jobs:
-  name: Deploy Temporal amb Ngrok
-
-on:
   workflow_dispatch:
 
 jobs:
