@@ -1,51 +1,31 @@
-name: Deploy Docker Fullstack with Ngrok
+name: Deploy Temporal amb Ngrok
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # Permet executar manualment des de GitHub
 
 jobs:
-  deploy:
+  deploy-ngrok:
     runs-on: ubuntu-latest
 
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
 
-    - name: Copy project to server
-      uses: appleboy/scp-action@v0.1.2
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        source: "."
-        target: "~/deploy_project"
+    - name: Instal·lar jq i curl (necessari per Ngrok API)
+      run: sudo apt-get update && sudo apt-get install -y jq curl
 
-    - name: Create .env on server
-      uses: appleboy/ssh-action@v0.1.8
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        script: |
-          cd ~/deploy_project
-          cat > .env <<EOF
-          FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
-          NGROK_AUTHTOKEN=${{ secrets.NGROK_AUTHTOKEN }}
-          EOF
-          chmod 600 .env
+    - name: Arrancar Docker Compose
+      run: |
+        docker-compose down || true
+        docker-compose up -d --build
 
-    - name: Deploy with Docker Compose
-      uses: appleboy/ssh-action@v0.1.8
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
-        script: |
-          cd ~/deploy_project
-          docker-compose down || true
-          docker-compose up -d --build
+    - name: Esperar i mostrar URL pública de Ngrok
+      run: |
+        echo "Esperant que Ngrok s'aixequi i mostrar URL pública..."
+        sleep 10  # espera inicial curta
+        # Bucle 15 minuts per mantenir el runner actiu i imprimir l'URL
+        for i in {1..15}; do
+          URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+          echo "URL pública Ngrok (minut $i/15): $URL"
+          sleep 60
+        done
