@@ -4,6 +4,12 @@ on:
   workflow_dispatch:  # Permet executar manualment des de GitHub
 
 jobs:
+  name: Deploy Temporal amb Ngrok
+
+on:
+  workflow_dispatch:
+
+jobs:
   deploy-ngrok:
     runs-on: ubuntu-latest
 
@@ -11,19 +17,18 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v3
 
-    - name: Instal·lar jq i curl (necessari per Ngrok API)
+    - name: Instal·lar jq i curl
       run: sudo apt-get update && sudo apt-get install -y jq curl
 
     - name: Arrancar Docker Compose
       run: |
-        docker-compose down || true
-        docker-compose up -d --build
+        docker compose down || true
+        docker compose up -d --build
 
     - name: Esperar i mostrar URL pública de Ngrok
       run: |
         echo "Esperant que Ngrok s'aixequi i mostrar URL pública..."
         sleep 10  # espera inicial curta
-        # Bucle 15 minuts per mantenir el runner actiu i imprimir l'URL
         for i in {1..15}; do
           URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
           echo "URL pública Ngrok (minut $i/15): $URL"
