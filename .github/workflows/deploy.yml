@@ -1,0 +1,51 @@
+name: Deploy Docker Fullstack with Ngrok
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Copy project to server
+      uses: appleboy/scp-action@v0.1.2
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT }}
+        source: "."
+        target: "~/deploy_project"
+
+    - name: Create .env on server
+      uses: appleboy/ssh-action@v0.1.8
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT }}
+        script: |
+          cd ~/deploy_project
+          cat > .env <<EOF
+          FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
+          NGROK_AUTHTOKEN=${{ secrets.NGROK_AUTHTOKEN }}
+          EOF
+          chmod 600 .env
+
+    - name: Deploy with Docker Compose
+      uses: appleboy/ssh-action@v0.1.8
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT }}
+        script: |
+          cd ~/deploy_project
+          docker-compose down || true
+          docker-compose up -d --build
