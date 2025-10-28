@@ -1,29 +1,18 @@
 version: "3.9"
 
 services:
-  backend:
-    build: ./servidor
-    container_name: backend
-    env_file:
-      - .env
-    ports:
-      - "5000:5000"
-    restart: unless-stopped
-
   frontend:
     build: ./client
-    container_name: frontend
     ports:
-      - "80:80"
-    restart: unless-stopped
-
-  ngrok:
-    image: wernight/ngrok
-    container_name: ngrok
-    depends_on:
-      - frontend
+      - "3000:3000"   # Port exposat al runner
     environment:
-      NGROK_AUTHTOKEN: "${NGROK_AUTHTOKEN}"
-      NGROK_PORT: "frontend:80"
+      - NODE_ENV=development
+
+  backend:
+    build: ./servidor
     ports:
-      - "4040:4040"
+      - "5000:5000"
+    environment:
+      - FLASK_APP=server.py
+      - FLASK_RUN_HOST=0.0.0.0
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}

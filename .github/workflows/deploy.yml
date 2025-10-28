@@ -1,30 +1,57 @@
-name: Deploy Temporal amb Ngrok
+name: Docker + Ngrok Demo
 
 on:
   workflow_dispatch:
 
 jobs:
-  deploy-ngrok:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v3
+      # 1️⃣ Checkout del codi
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Instal·lar jq i curl
-      run: sudo apt-get update && sudo apt-get install -y jq curl
+      # 2️⃣ Arrancar els contenidors Docker (frontend + backend)
+      - name: Run Docker containers
+        run: docker compose up -d --build
 
-    - name: Arrancar Docker Compose
-      run: |
-        docker compose down || true
-        docker compose up -d --build
+      # 3️⃣ Instal·lar Ngrok v3 al runner
+      - name: Install Ngrok v3
+        run: |
+          curl -sLo ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
+          unzip -o ngrok.zip
+          sudo mv ngrok /usr/local/bin/
+          sudo chmod +x /usr/local/bin/
+          /usr/local/bin/ngrok version
 
-    - name: Esperar i mostrar URL pública de Ngrok
-      run: |
-        echo "Esperant que Ngrok s'aixequi i mostrar URL pública..."
-        sleep 10  # espera inicial curta
-        for i in {1..15}; do
-          URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-          echo "URL pública Ngrok (minut $i/15): $URL"
-          sleep 60
-        done
+      # 4️⃣ Autenticar Ngrok amb el secret
+      - name: Authenticate Ngrok
+        run: /usr/local/bin/ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
+
+      # 5️⃣ Llançar el túnel Ngrok i mostrar la URL pública
+      - name: Start Ngrok tunnel
+        id: ngrok
+        run: |
+          # Llança ngrok en background al port del frontend
+          /usr/local/bin/ngrok http 3000 --log=stdout > ngrok.log &
+          NGROK_PID=$!
+
+          # Espera que Ngrok arranqui
+          sleep 5
+
+          # Extreu la URL pública des del endpoint local
+          NGROK_URL=$(curl --silent http://127.0.0.1:4040/api/tunnels | \
+                       grep -oP '"public_url":"\Khttps://[^"]+')
+          echo "NGROK_URL=$NGROK_URL" >> $GITHUB_ENV
+          echo "🌐 Web accessible a: $NGROK_URL"
+          echo "::notice title=URL pública::$NGROK_URL"
+
+          # Manté el túnel actiu durant 10 minuts
+          sleep 600
+          kill $NGROK_PID
+
+      # 6️⃣ Neteja dels contenidors Docker al final
+      - name: Stop Docker containers
+        if: always()
+        run: docker compose down
