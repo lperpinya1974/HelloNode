@@ -4,7 +4,7 @@ services:
   frontend:
     build: ./client
     ports:
-      - "3000:3000"   # Port exposat al runner
+      - "3000:3000"
     environment:
       - NODE_ENV=development
 
@@ -16,3 +16,4 @@ services:
       - FLASK_APP=server.py
       - FLASK_RUN_HOST=0.0.0.0
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+

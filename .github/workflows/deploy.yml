@@ -1,7 +1,10 @@
-name: Docker + Ngrok Demo
+name: Docker + Ngrok v3 Demo
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -12,34 +15,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Arrancar els contenidors Docker (frontend + backend)
+      # 2️⃣ Llançar contenidors amb Docker Compose
       - name: Run Docker containers
-        run: docker compose up -d --build
+        run: docker compose up -d
 
-      # 3️⃣ Instal·lar Ngrok v3 al runner
+      # 3️⃣ Instal·lar Ngrok v3
       - name: Install Ngrok v3
         run: |
           curl -sLo ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
           unzip -o ngrok.zip
           sudo mv ngrok /usr/local/bin/
-          sudo chmod +x /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ngrok
           /usr/local/bin/ngrok version
 
       # 4️⃣ Autenticar Ngrok amb el secret
       - name: Authenticate Ngrok
         run: /usr/local/bin/ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
 
-      # 5️⃣ Llançar el túnel Ngrok i mostrar la URL pública
+      # 5️⃣ Llançar el túnel ngrok i capturar la URL pública
       - name: Start Ngrok tunnel
         id: ngrok
         run: |
-          # Llança ngrok en background al port del frontend
+          # Llança ngrok en background
           /usr/local/bin/ngrok http 3000 --log=stdout > ngrok.log &
           NGROK_PID=$!
-
-          # Espera que Ngrok arranqui
-          sleep 5
-
+          
+          # Espera que el frontend amb proxy arranqui
+          sleep 10
+          
+          # Comprova que el frontend respon
+          curl --silent --fail http://127.0.0.1:3000/ || (echo "Frontend no up" && exit 1)
+          
           # Extreu la URL pública des del endpoint local
           NGROK_URL=$(curl --silent http://127.0.0.1:4040/api/tunnels | \
                        grep -oP '"public_url":"\Khttps://[^"]+')
@@ -47,7 +53,7 @@ jobs:
           echo "🌐 Web accessible a: $NGROK_URL"
           echo "::notice title=URL pública::$NGROK_URL"
 
-          # Manté el túnel actiu durant 10 minuts
+          # Manté el túnel actiu fins que acabi el workflow (10 minuts)
           sleep 600
           kill $NGROK_PID
 
