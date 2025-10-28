@@ -1,18 +1,19 @@
-# Node + express + proxy
+# Imatge base de Node
 FROM node:18-alpine
 
+# Carpeta de treball dins del contenidor
 WORKDIR /app
 
-# Instal·lar depèndencies
-COPY package*.json ./
-RUN npm ci --production
+# Copiem package.json i instal·lem dependències
+COPY package.json ./
+RUN npm install --production
 
-# Copiar codi
+# Copiem tot el codi del frontend
 COPY . .
 
-# Exposar port del frontend
+# Exposem el port del frontend
 ENV PORT=3000
 EXPOSE 3000
 
-# Comença el servidor amb proxy
+# Comença el servidor Node amb proxy
 CMD ["node", "server.js"]
